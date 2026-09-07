@@ -1,0 +1,56 @@
+# ===================================================
+# EdgeRoute — .gitignore
+# ===================================================
+
+# Environment / secrets — NEVER commit
+.env
+*.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+*.whl
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+ENV/
+.python-version
+
+# Testing / Coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.log
+
+# IDE / OS
+.idea/
+.vscode/
+*.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Evaluation outputs (can regenerate)
+evaluation/results/
+evaluation/*.csv
+evaluation/*.html
+
+# Benchmark outputs (machine-specific — never commit)
+evaluation/benchmark_results_*.json
