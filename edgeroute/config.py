@@ -42,7 +42,7 @@ OLLAMA_HOST: str = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen2.5:0.5b")
 
 # Timeout in seconds for Ollama inference calls
-OLLAMA_TIMEOUT: int = int(os.getenv("OLLAMA_TIMEOUT", "60"))
+OLLAMA_TIMEOUT: int = int(os.getenv("OLLAMA_TIMEOUT", "10"))
 
 # ---------------------------------------------------------------------------
 # Router / Policy
