@@ -218,7 +218,14 @@ def route(
 
     elif final_route == "LOCAL_SIMPLE":
         if slm_result.model_available and not slm_result.error:
-            slm_resp = _slm.generate(query)
+            slm_resp = _slm.generate(
+                query,
+                system=(
+                    "You are EdgeRoute AI, an intelligent, helpful, and concise local assistant. "
+                    "Provide a clear, accurate, and direct response to the user's request. "
+                    "For calculations or questions, answer directly and cleanly."
+                ),
+            )
             result.response = slm_resp.text or "[No response from local SLM]"
             result.slm_latency_ms += slm_resp.latency_ms
             result.reason_chain.append("Generated response using local SLM.")

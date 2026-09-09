@@ -77,6 +77,32 @@ EdgeRoute before this cloud adapter was invoked.
 
 
 def _mock_response(query: str) -> CloudResponse:
+    """Generate a real response via local SLM fallback when cloud key is absent."""
+    try:
+        from models.slm import LocalSLM
+        slm = LocalSLM()
+        if slm.is_available():
+            resp = slm.generate(
+                query,
+                system=(
+                    "You are an expert AI assistant executing a complex request escalated by EdgeRoute. "
+                    "Provide a thorough, detailed, well-structured, and helpful response with markdown formatting."
+                ),
+            )
+            if resp.text and not resp.error:
+                note = (
+                    f"*(Escalated to Cloud Route — handled via local `{slm.model}` fallback. "
+                    "Add an API key in the sidebar for live cloud providers.)*\n\n"
+                )
+                return CloudResponse(
+                    text=note + resp.text,
+                    model=f"local-cloud-emulation/{slm.model}",
+                    mock=True,
+                    latency_ms=resp.latency_ms,
+                )
+    except Exception as exc:
+        logger.warning("Local SLM fallback failed in cloud adapter: %s", exc)
+
     return CloudResponse(
         text=_MOCK_TEMPLATE.format(query=query[:200], model=CLOUD_MODEL),
         model=f"mock/{CLOUD_MODEL}",
@@ -89,14 +115,16 @@ def _mock_response(query: str) -> CloudResponse:
 # Live cloud call (OpenAI-compatible)
 # ---------------------------------------------------------------------------
 
-def _live_response(query: str) -> CloudResponse:
+def _live_response(query: str, api_key: str | None = None, api_base: str | None = None, model: str | None = None) -> CloudResponse:
     """
-    Call an OpenAI-compatible API.
+    Call an OpenAI-compatible API (OpenAI, Groq, OpenRouter, etc.).
+    """
+    key = api_key or os.getenv("CLOUD_API_KEY") or CLOUD_API_KEY
+    base = api_base or os.getenv("CLOUD_API_BASE") or CLOUD_API_BASE
+    target_model = model or os.getenv("CLOUD_MODEL") or CLOUD_MODEL
 
-    Never hard-codes the API key; reads from CLOUD_API_KEY env variable.
-    """
-    if not CLOUD_API_KEY:
-        logger.warning("CLOUD_API_KEY not set; falling back to mock response.")
+    if not key:
+        logger.warning("CLOUD_API_KEY not set; falling back to local fallback response.")
         return _mock_response(query)
 
     try:
@@ -104,17 +132,23 @@ def _live_response(query: str) -> CloudResponse:
 
         t0 = time.perf_counter()
         headers = {
-            "Authorization": f"Bearer {CLOUD_API_KEY}",
+            "Authorization": f"Bearer {key}",
             "Content-Type": "application/json",
         }
         payload = {
-            "model": CLOUD_MODEL,
-            "messages": [{"role": "user", "content": query}],
-            "max_tokens": 1024,
+            "model": target_model,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are a helpful, expert AI assistant. Provide high-quality, comprehensive answers."
+                },
+                {"role": "user", "content": query}
+            ],
+            "max_tokens": 1500,
         }
-        with httpx.Client(timeout=30) as client:
+        with httpx.Client(timeout=45) as client:
             resp = client.post(
-                f"{CLOUD_API_BASE}/chat/completions",
+                f"{base.rstrip('/')}/chat/completions",
                 headers=headers,
                 json=payload,
             )
@@ -124,15 +158,15 @@ def _live_response(query: str) -> CloudResponse:
             latency_ms = (time.perf_counter() - t0) * 1000
             return CloudResponse(
                 text=text,
-                model=CLOUD_MODEL,
+                model=target_model,
                 mock=False,
                 latency_ms=latency_ms,
             )
     except Exception as exc:  # noqa: BLE001
         logger.error("Cloud API call failed: %s", exc)
         return CloudResponse(
-            text="[Cloud LLM unavailable — API call failed]",
-            model=CLOUD_MODEL,
+            text=f"[Cloud LLM call failed: {exc}]",
+            model=target_model,
             mock=False,
             error=str(exc),
             latency_ms=0.0,
