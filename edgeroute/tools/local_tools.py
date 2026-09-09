@@ -30,21 +30,45 @@ ToolResult = dict[str, Any]
 
 
 # ---------------------------------------------------------------------------
-# Individual tool implementations (simulated)
+# Hardware GPIO Integration (Raspberry Pi 4 / 5)
+# ---------------------------------------------------------------------------
+_GPIO_AVAILABLE = False
+_LIGHT_PIN = None
+try:
+    from gpiozero import LED
+    _LIGHT_PIN = LED(17)  # GPIO 17 (Pin 11) for physical LED / Relay
+    _GPIO_AVAILABLE = True
+    logger.info("Raspberry Pi GPIO detected: Pin 17 active for hardware control.")
+except Exception:
+    _GPIO_AVAILABLE = False
+
+
+# ---------------------------------------------------------------------------
+# Individual tool implementations (simulated or real GPIO if present)
 # ---------------------------------------------------------------------------
 
 def turn_on_light(location: str = "room") -> ToolResult:
-    """Simulate turning on a light."""
+    """Turn on light (physical GPIO 17 on Raspberry Pi or simulated)."""
+    if _GPIO_AVAILABLE and _LIGHT_PIN:
+        try:
+            _LIGHT_PIN.on()
+        except Exception as e:
+            logger.warning("GPIO error: %s", e)
     msg = f"Light turned ON in the {location}."
-    logger.info("[SIMULATED] %s", msg)
-    return {"tool": "turn_on_light", "status": "success", "message": msg, "simulated": True}
+    logger.info("[TOOL] %s", msg)
+    return {"tool": "turn_on_light", "status": "success", "message": msg, "simulated": True, "gpio": _GPIO_AVAILABLE}
 
 
 def turn_off_light(location: str = "room") -> ToolResult:
-    """Simulate turning off a light."""
+    """Turn off light (physical GPIO 17 on Raspberry Pi or simulated)."""
+    if _GPIO_AVAILABLE and _LIGHT_PIN:
+        try:
+            _LIGHT_PIN.off()
+        except Exception as e:
+            logger.warning("GPIO error: %s", e)
     msg = f"Light turned OFF in the {location}."
-    logger.info("[SIMULATED] %s", msg)
-    return {"tool": "turn_off_light", "status": "success", "message": msg, "simulated": True}
+    logger.info("[TOOL] %s", msg)
+    return {"tool": "turn_off_light", "status": "success", "message": msg, "simulated": True, "gpio": _GPIO_AVAILABLE}
 
 
 def set_temperature(value: float = 22.0, unit: str = "C") -> ToolResult:
