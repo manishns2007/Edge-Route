@@ -161,6 +161,17 @@ def apply_policy(
             reason_chain.append("Command intent confirmed by signal extraction.")
         base_route = "LOCAL_COMMAND"
         base_conf = max(base_conf, 0.90)
+    elif base_route == "LOCAL_COMMAND" and signals.is_command == 0.0 and signals.is_tool == 0.0:
+        # If SLM mistakenly said LOCAL_COMMAND without any command verb or tool keyword
+        if signals.is_math > 0.0 or signals.is_question > 0.5 or (signals.word_count <= 20 and signals.complexity_score < 0.3):
+            reason_chain.append(
+                "No command or tool signals detected for question/math query — "
+                "overriding false LOCAL_COMMAND → LOCAL_SIMPLE."
+            )
+            base_route = "LOCAL_SIMPLE"
+            base_conf = max(base_conf, 0.85)
+            overridden = True
+            override_reason = "command_sanitization"
 
     # -----------------------------------------------------------------------
     # RULE 3 — Privacy enforcement

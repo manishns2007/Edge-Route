@@ -228,6 +228,7 @@ def _init_state():
         "privacy_blocked": 0,
         "total_latency_ms": 0.0,
         "last_result": None,
+        "main_input": "",
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -285,7 +286,8 @@ with st.sidebar:
     ]
     for label, query in EXAMPLES:
         if st.button(label, key=f"ex_{label}"):
-            st.session_state["input_query"] = query
+            st.session_state["main_input"] = query
+            st.session_state["auto_route"] = True
             st.rerun()
 
     st.markdown("---")
@@ -305,20 +307,14 @@ with st.sidebar:
 
 col_input, col_spacer = st.columns([3, 1])
 with col_input:
-    query_val = st.session_state.get("input_query", "")
     user_query = st.text_area(
         "Enter your request",
-        value=query_val,
         height=100,
         placeholder="What is 2 + 2?   |   Turn on the light.   |   Write a 1500-word story ...",
         key="main_input",
         label_visibility="collapsed",
     )
     route_btn = st.button("🔀 Route Request", use_container_width=True)
-
-# Clear the pre-filled example after it's been rendered
-if "input_query" in st.session_state:
-    del st.session_state["input_query"]
 
 # ---------------------------------------------------------------------------
 # Routing logic
@@ -331,8 +327,10 @@ ROUTE_BADGE_MAP = {
     "AMBIGUOUS":     ("badge badge-ambig",   "🟡 AMBIGUOUS"),
 }
 
-if route_btn:
-    query_to_route = user_query.strip()
+should_route = route_btn or st.session_state.pop("auto_route", False)
+
+if should_route:
+    query_to_route = st.session_state.get("main_input", "").strip()
     if not query_to_route:
         st.warning("Please enter a request first.")
     else:
